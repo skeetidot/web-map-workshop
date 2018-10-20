@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Cambridge Coffee Shops</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css" />
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+
+<body>
+    <div id="wrapper">
+        <div id="header">
+            <h1>Caffeinated Cambridge</h1>
+        </div>
+        <div id="map"></div>
+        <div id="controls">
+            <div id="form">
+                <form action="">
+                    <input type="radio" name="filter" value="all" checked>Show All Coffee Shops
+                    <input type="radio" name="filter" value="starbucks">Starbucks Only
+                </form>
+            </div>
+            <div id="credits">
+                <p>Coffee Shop Data from <a href="http://www.referenceusa.com/">ReferenceUSA</a><br>#webMapWorkshop - &copy;2015, Mike Foster</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- include leaflet.js library -->
+    <script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+    <script>
+        // Create Leaflet map object
+        var map = L.map('map', {
+            center: [42.381899, -71.122499],
+            zoom: 13
+        });
+
+        // Add Tile Layer basemap
+        L.tileLayer('http://tiles.mapc.org/basemap/{z}/{x}/{y}.png', {
+            attribution: 'Tiles by <a href="http://mapc.org">MAPC</a>, Data by <a href="http://mass.gov/mgis">MassGIS</a>',
+            maxZoom: 17,
+            minZoom: 9
+        }).addTo(map);
+
+        // Global Variables
+        // Will go here
+        var coffeeShopLocations = null;
+
+
+        // Database Queries
+        // Will go here
+
+        // Get all coffee cafes from the database
+        var sqlQuery = "SELECT * FROM coffee_cafes";
+
+        // Get all coffee cafes named "Starbucks"
+        var sqlQueryStarbucks = "SELECT * FROM coffee_cafes WHERE name = 'Starbucks'";
+
+        // Set CARTO Username
+        var cartoDBUserName = "lewinkler2";
+
+        // Run the showAll() function automatically when document loads
+        $(document).ready(function() {
+            showAll();
+        });
+
+        // Function to show all coffee shops on the map
+        function showAll() {
+
+            // If the coffee shops layer is already shown on the map, remove it
+            if (map.hasLayer(coffeeShopLocations)) {
+                map.removeLayer(coffeeShopLocations);
+            };
+
+            // Run the specified sqlQuery from CARTO, return it as a JSON, convert it to a Leaflet GeoJson, and add it to the map with a popup
+
+            // For the data source, enter the URL that goes to the SQL API, including our username and the SQL query
+            $.getJSON("https://" + cartoDBUserName + ".carto.com/api/v2/sql?format=GeoJSON&q=" + sqlQuery, function(data) {
+
+                // Convert the JSON to a Leaflet GeoJson
+                coffeeShopLocations = L.geoJson(data, {
+
+                    // Loop through each feature
+                    onEachFeature: function(feature, layer) {
+
+                        // Bind the name and address to a popup
+                        layer.bindPopup('<p><b>' + feature.properties.name + '</b><br /><em>' + feature.properties.address + '</em></p>');
+
+                        // Set the layer's CARTO ID
+                        layer.cartodb_id = feature.properties.cartodb_id;
+                    }
+                }).addTo(map);
+            });
+        };
+
+        // Function to filter the map to only show Starbucks
+        function showStarbucks() {
+
+            // If the coffee shops layer is already shown on the map, remove it
+            if (map.hasLayer(coffeeShopLocations)) {
+                map.removeLayer(coffeeShopLocations);
+            };
+
+            // Run the specified sqlQuery from CARTO, return it as a JSON, convert it to a Leaflet GeoJson, and add it to the map with a popup
+
+            // For the data source, enter the URL that goes to the SQL API, including our username and the SQL query to return only Starbucks  
+            $.getJSON("https://" + cartoDBUserName + ".carto.com/api/v2/sql?format=GeoJSON&q=" + sqlQueryStarbucks, function(data) {
+
+                // Convert the JSON to a Leaflet GeoJson
+                coffeeShopLocations = L.geoJson(data, {
+
+                    // Loop through each feature
+                    onEachFeature: function(feature, layer) {
+
+                        // Bind the name and address to a popup
+                        layer.bindPopup('<p><b>' + feature.properties.name + '</b><br /><em>' + feature.properties.address + '</em></p>');
+
+                        // Set the layer's CARTO ID
+                        layer.cartodb_id = feature.properties.cartodb_id;
+                    }
+                }).addTo(map);
+            });
+        };
+
+        // Event Listeners
+        
+        // When the user clicks the Starbucks radio button, run the showStarbucks() function
+        $('input[value=starbucks]').click(function() {
+            showStarbucks();
+        });
+
+        // When the user clicks the All radio button, run the showAll() function
+        $('input[value=all]').click(function() {
+            showAll();
+        });
+    </script>
+</body>
+
+</html>
