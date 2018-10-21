@@ -1,9 +1,14 @@
 <?php
+
+// This file sets the goProxy function and holds our credentials, hidden two steps away from our HTML document.
+
 session_cache_limiter('nocache');
 $cache_limiter = session_cache_limiter();
+
+// Function to run the SQL query in CARTO via PHP proxy, so the CARTO credentials are hidden from the public-facing HTML file
 function goProxy($dataURL) 
 {
-	$baseURL = 'http://{your CartoDB username}.cartodb.com/api/v2/sql?';
+	$baseURL = 'http://lewinkler2.cartodb.com/api/v2/sql?';
 	//  					^ CHANGE THE 'CARTODB-USER-NAME' to your cartoDB url!
 	$api = '&api_key={your CartoDB API key}';
 	//				 ^ENTER YOUR API KEY HERE!

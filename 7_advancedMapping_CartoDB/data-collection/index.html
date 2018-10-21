@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Leaflet to CartoDB - Point Collection Tool Beta</title>
+    <link rel="stylesheet" href="css/leaflet.css" />
+    <link rel="stylesheet" href="css/leaflet.draw.css" />
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+
+<body>
+    <div id="wrapper">
+        <div id="header">
+            <h1>Leaflet Data Collection Tool</h1>
+        </div>
+        <div id="map"></div>
+        <div id="controls">
+            <p>Click points for more information, or add your own.</br></p>
+            <input type="button" onclick="startEdits()" value="Click to Start Editing">
+            <input type="button" onclick="stopEdits()" value="Stop Your Editing Session"><br>
+            <div id="credits">
+                <p>#webMapWorkshop - &copy;2017, Mike Foster</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Point Information dialog -->
+    <div id="dialog" title="Point Information">
+        <form>
+            <fieldset style="border: none;">
+                <ul style="list-style-type: none; padding-left: 0px">
+
+                    <!-- User Name -->
+                    <li><label for="username">Your Name</label></li>
+                    <li><input type="text" name="username" id="username" placeholder="Enter your name" class="text ui-widget-content ui-corner-all"></li>
+
+                    <!-- Description of the Point -->
+                    <li><label for="description">About this Point</label></li>
+                    <li><input type="text" name="description" id="description" placeholder="Description for this point" class="text ui-widget-content ui-corner-all"></li>
+                </ul>
+                <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+            </fieldset>
+        </form>
+    </div>
+
+
+
+    <script src="js/leaflet.js"></script>
+    <script src="js/leaflet.draw.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+    <script>
+        // Create Leaflet map object
+        var map = L.map('map', {
+            center: [42.381899, -71.122499],
+            zoom: 13
+        });
+
+        // Add Tile Layer basemap
+        L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            minZoom: 2,
+            maxZoom: 18
+        }).addTo(map);
+
+        // Your script will go here!
+
+
+        // Add Data from CARTO using the SQL API
+
+        // Declare Variables
+
+        // Create a global variable to hold the CARTO points
+        var cartoDBPoints = null;
+
+        // Set your CARTO Username
+        var cartoDBusername = "lewinkler2";
+
+        // Write SQL SELECT statement to get all data from the data_collector table in CARTO
+        // Name of table is 'data_collector'
+        var sqlQuery = "SELECT * FROM data_collector";
+
+        // Get CARTO selection as GeoJSON and Add to Map
+        function getGeoJSON() {
+
+            // Run the SQL query and return the value as a JSON
+            $.getJSON("https://" + cartoDBusername + ".cartodb.com/api/v2/sql?format=GeoJSON&q=" + sqlQuery, function(data) {
+
+                // Convert the JSON to a Leaflet GeoJson
+                cartoDBPoints = L.geoJson(data, {
+
+                    // Symbolize the points with markers and bind a popup with the name and description
+                    pointToLayer: function(feature, latlng) {
+                        var marker = L.marker(latlng);
+                        marker.bindPopup('' + feature.properties.description + 'Submitted by ' + feature.properties.name + '');
+                        return marker;
+                    }
+                }).addTo(map);
+            });
+        };
+
+        // Run showAll function automatically when document loads
+        $(document).ready(function() {
+            getGeoJSON();
+        });
+
+        // Create Leaflet Draw Control for the draw tools and toolbox
+        var drawControl = new L.Control.Draw({
+
+            // Disable drawing of polygons, polylines, rectangles, and circles
+            // Users will only be able to draw markers (points)
+            draw: {
+                polygon: false,
+                polyline: false,
+                rectangle: false,
+                circle: false
+            },
+
+            // Disable editing and deleting points
+            edit: false,
+            remove: false
+        });
+
+        // Boolean global variable used to control visiblity
+        // Do not show the draw control on the map initially
+        // It will be displayed once the user clicks Start Editing
+        var controlOnMap = false;
+
+        // Create variable for Leaflet.draw features
+        var drawnItems = new L.FeatureGroup();
+
+        // Function to add the draw control to the map to start editing
+        function startEdits() {
+
+            // If the draw control is already on the map remove it and set the controlOnMap flag back to false
+            if (controlOnMap == true) {
+                map.removeControl(drawControl);
+                controlOnMap = false;
+            }
+
+            // Add the draw control to the map and set the controlOnMap flag to true
+            map.addControl(drawControl);
+            controlOnMap = true;
+        };
+
+        // Function to remove the draw control from the map
+        function stopEdits() {
+
+            // Remove the draw control from the map and set the controlOnMap flag back to false
+            map.removeControl(drawControl);
+            controlOnMap = false;
+        };
+
+        // Function to run when a feature is drawn on the map
+        map.on('draw:created', function(e) {
+
+            // When a feature is created on the map, a layer on which it sits is also created. Create a new layer from this automatically created layer.
+            var layer = e.layer;
+
+            // Add the new layer to the drawnItems feature group
+            drawnItems.addLayer(layer);
+
+            // Add the drawnItems feature group to the map
+            map.addLayer(drawnItems);
+
+            // Open the dialog for the user to enter attributes about the new feature
+            dialog.dialog("open");
+        });
+
+        // Use the jQuery UI dialog to create a popup dialog and set options
+        var dialog = $("#dialog").dialog({
+
+            // Set display options
+            autoOpen: false, // do not open by default
+            height: 300,
+            width: 350,
+            modal: true, // display as a modal window, so the map underneath cannot be edited while the window is open
+
+            // Open the dialog in the center of the map
+            position: {
+                my: "center center",
+                at: "center center",
+                of: "#map"
+            },
+
+            // Set the buttons
+            buttons: {
+
+                // When Add to Database is clicked, it will call the setData() function
+                "Add to Database": setData,
+
+                // When the Cancel button is clicked, it will close the dialog and remove the newly drawn point from the map
+                Cancel: function() {
+                    dialog.dialog("close");
+                    map.removeLayer(drawnItems);
+                }
+            },
+
+            // When the dialog is closed (via the X), reset the form
+            close: function() {
+                form[0].reset();
+                console.log("Dialog closed");
+            }
+        });
+
+        // Stops default form submission and ensures that setData or the cancel function run
+        var form = dialog.find("form").on("submit", function(event) {
+            event.preventDefault();
+        });
+
+        // Function to create variables for the location and attributes of the point just drawn and run a SQL query to insert the point into the data_collector layer in CARTO
+        function setData() {
+
+            // Get the name and description submitted by the user
+            var enteredUsername = username.value;
+            var enteredDescription = description.value;
+
+            // Loop through each of the drawn items
+            drawnItems.eachLayer(function(layer) {
+
+                // Write a SQL/PostGIS query to insert the geometry, name, and description for the drawn item into the data_collector table
+                // Set the spatial reference baesd on the GeoJSON
+                var sql = "INSERT INTO data_collector (the_geom, description, name, latitude, longitude) VALUES (ST_SetSRID(ST_GeomFromGeoJSON('";
+
+                // Get the coordinates of the drawn point and add them to the SQL statement
+                var a = layer.getLatLng();
+                var sql2 = '{"type":"Point","coordinates":[' + a.lng + "," + a.lat + "]}'),4326),'" + enteredDescription + "','" + enteredUsername + "','" + a.lat + "','" + a.lng + "')";
+
+                // Combine the two parts of the SQL statement
+                var pURL = sql + sql2;
+
+                /* Full SQL statement:
+                INSERT INTO data_collector (the_geom, description, name, latitude, longitude)
+                
+                VALUES ST_SetSRID(ST_GeomFromGeoJSON('{"type":"Point","coordinates":[ {longitude value},{latitude value} ]}'),4326), '{description value}','{name value}','{longitude value}','{latitude value}')";
+                */
+
+                // Submit the SQL statement to the PHP proxy, so it can be added to the database without exposing the CARTO API key
+                submitToProxy(pURL);
+                console.log("Feature has been submitted to the Proxy");
+            });
+
+            // Remove the drawn items layer from the map
+            map.removeLayer(drawnItems);
+
+            // Create a new empty drawnItems feature group to capture the next user-drawn data
+            drawnItems = new L.FeatureGroup();
+            console.log("drawnItems has been cleared");
+
+            // Close the dialog
+            dialog.dialog("close");
+        };
+
+        // Function to submit data to the PHP proxy using the jQuery post() method
+        var submitToProxy = function(q) {
+            $.post("../php/callProxy.php", { // <--- Enter the path to your callProxy.php file here
+                qurl: q,
+                cache: false,
+                timeStamp: new Date().getTime()
+            }, function(data) {
+                console.log(data);
+                
+                // Refresh the layer to show the updated data
+                refreshLayer();
+            });
+        };
+
+        // Function to refresh the layers to show the updated dataset
+        function refreshLayer() {
+            if (map.hasLayer(cartoDBPoints)) {
+                map.removeLayer(cartoDBPoints);
+            };
+            getGeoJSON();
+        };
+    </script>
+</body>
+
+</html>
