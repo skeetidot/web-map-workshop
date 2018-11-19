@@ -42,7 +42,7 @@
         L.tileLayer('http://tiles.mapc.org/basemap/{z}/{x}/{y}.png', {
             attribution: 'Tiles by <a href="http://mapc.org">MAPC</a>, Data by <a href="http://mass.gov/mgis">MassGIS</a>',
             maxZoom: 17,
-            minZoom: 9
+            minZoom: 5
         }).addTo(map);
 
         // Declare Variables
@@ -113,15 +113,15 @@
 
 
         // Function that locates the user
-//        function locateUser() {
-//            map.locate({
-//                setView: true,
-//                maxZoom: 15
-//            });
-//        }
+        function locateUser() {
+            map.locate({
+                setView: true,
+                maxZoom: 15
+            });
+        }
         
         // Set the current location to the point clicked on the map
-        map.on('click', locationFound);
+        //map.on('click', locationFound);
 
         // Map Event Listener listening for when the user location is found
         // When the location is found, run the locationFound(e) function
